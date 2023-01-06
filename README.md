@@ -8,7 +8,8 @@ This repo contains the code and additional data required to reproduce the result
 - encounter_bears.R: Code to calculate home range shifts for bears and run population level comparisons on individuals' home ranges before and after encounters. 
 
 ## Data Files
-- bearpairs_final.csv: selected pairs that came within 100m of each other (n=29). Columns are as follows:      - pair1: individual 1p
+- bearpairs_final.csv: selected pairs that came within 100m of each other (n=29). Columns are as follows:
+  - pair1: individual 1p
   - pair2: individual 2
   - time: year-month-day hour-minute-second of encounter
   - dist: minimum distance between individuals at encounter (in meters)
