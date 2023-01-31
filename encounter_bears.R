@@ -71,7 +71,7 @@ get_overlap = function(data, name1, name2, date_encounter, timestart, timestop) 
 
 #function to calculate overlap within individual home range before/after encounter 
 #returns a list of overlap for individual 1 and overlap for individual 2
-get_overlap = function(dat, name1, name2, date_encounter, timestart, timestop) {
+get_overlap_individual = function(dat, name1, name2, date_encounter, timestart, timestop) {
   
   names <- c()
   for (i in dat) {
