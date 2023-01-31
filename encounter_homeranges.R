@@ -233,7 +233,7 @@ projection(ind2_dat) <- projection(ind1_dat) #align projections
 ind1_fit <- ctmm.select(ind1_dat, ctmm.guess(ind1_dat, interactive=FALSE), trace=2, cores=2)
 ind2_fit <- ctmm.select(ind2_dat, ctmm.guess(ind2_dat, interactive=FALSE), trace=2, cores=2)
 
-dists <- ctmm::distances(list(ind1_dat, ind2_dat),list(ind1_fit, ind2_fit))
+dists <- ctmm::distances(list(ind1_dat, ind2_dat), list(ind1_fit, ind2_fit))
 
 #-----------------------------------------------------------------------------------------
 #run meta analysis to get AIC values associated with home range shift

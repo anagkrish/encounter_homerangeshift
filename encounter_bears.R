@@ -75,8 +75,8 @@ get_overlap = function(data, name1, name2, date_encounter, timestart, timestop) 
 #initialize folder to store overlap objects in
 folder <- "/your/folder/name/here"
 
-#load file with selected bear pairs (n=29)
-bearpairs <- read_csv("bearpairs_final.csv")
+#load file with selected bear pairs (n=35)
+bearpairs <- read_csv("bearpairs100.csv")
 
 #load bears data
 #data should be in format of a large list where each element is a telemetry object for each individual 
@@ -132,10 +132,15 @@ for (i in seq_along(list.files(folder))) {
 #rearrange/neaten UDS values data frame
 uds_vals <- uds_vals %>%
   drop_na() %>%
-  mutate(pair = gsub('([[:upper:]])', ' \\1', pair)) %>%
-  separate(pair, into=c("drop","pair1", "pair2"), sep = " ") %>%
-  mutate(pair2 = replace(pair2, pair2 == "E", "EVGF84")) %>%
-  dplyr::select(-c("drop"))
+  mutate(pair = gsub('([[:upper:]])', ' \\1', pair)) %>% #space between words (ideally each name but formatting is a bit iffy, hence the other steps)
+  separate(pair, into=c("pair1", "pair2"), sep = "^\\s*\\S+\\K\\s+") %>% #split only at first instance of space
+  rowwise() %>%
+  mutate(pair1 = gsub(" ", "", pair1),
+         pair2 = gsub(" ", "", pair2)) %>%
+  ungroup() %>%
+  mutate(pair1 = ifelse(pair1=="E", "EVGF84", pair1),
+         pair2 = ifelse(pair2=="VGF84Stu", "Stu", pair2)) #correct one instancce where split messes up
+
 
 #use meta function to compare Bhattacharryya distances of before/after overlap of all grizzlies in population
 meta <- meta(list(before = before, after = after),
@@ -143,33 +148,147 @@ meta <- meta(list(before = before, after = after),
 
 meta
 
+#calculate relative percent overlap values (translate BD into physical overlap change)
+#value represents what percentage the after overlap is of the the before overlap
+
+#get percent reduction in overlap
+BM <- meta(before,level=NA)[1,2:3] # mean and variance
+AM <- meta(after,level=NA)[1,2:3] # mean and variance
+
+# difference point estimate
+D <- AM[1] - BM[1]
+# difference variance
+VAR <- AM[2] + BM[2]
+
+# distance difference CI (can be negative)
+CI <- ctmm:::norm.ci(D,VAR=VAR,level=0.90)
+# overlap ratio CI
+CI <- rev(exp(-CI))
+names(CI) <- ctmm:::NAMES.CI
+
+# On average, AFTER overlap is only
+sigfig(100*CI)
+
 #-----------------------------------------------------------------------------------------
 #part 3: code to generate Fig. 2
 
-#load bhattacharyya distances for various subsets:
-#All encounters,encounters between same sex individuals, encounters between diff sex individuals,
-#encounters between diff sex individuals during late fall
-bhattacharyya <- read_csv("bhattacharyya.csv")
+#load bhattacharyya distances for various subsets of encounters btwn:
+#all individuals, same sex individuals, diff sex individuals, individuals during late fall, individuals during spring, diff sex individuals during late fall
+bhattacharyya <- read_csv("bhattacharyya100.csv")
 
 bhattacharyya %>%
+  filter(subset != "mm", subset != "ff") %>% #filter to desired subsets
   mutate(split = factor(split, levels = c("before", "after")), #make variable as factor so bars are in the correct order
-         subset = factor(subset, levels = c("all", "same", "diff", "diffhunting"))) %>%
-  ggplot(mapping = aes(x=subset, y=est, group=split, pattern=split)) +
-  geom_col_pattern(position=position_dodge(0.85), width=0.85, pattern_color = "#7A7A7A",
-                   fill = "white", color = "black", pattern_spacing = 0.015,
-                   pattern_frequency = 5, pattern_angle = 45) +
-  geom_errorbar(aes(ymin=low, ymax=high), width = .25, position = position_dodge(0.85)) +
-  scale_pattern_manual(values=c('none', 'stripe'), 
-                       labels=c("Before Encounter","After Encounter")) +
-  labs(x=NULL, y="Bhattacharyya Distance", pattern=NULL) +
-  scale_x_discrete(labels=c('ALL', 'SAME SEX', 'DIFF SEX', 'DIFF SEX \nLATE FALL'),
-                   expand=c(-1,0)) +
-  scale_y_continuous(expand = c(0, 0.001), limits=c(0,5.5)) + #removes space between bars and axis line
-  geom_text(aes(label=c("n=29",NA,"n=13",NA,"n=16",NA,"n=8",NA)), 
-            y = rep(c(4), times = 8)) +
+         subset = factor(subset, levels = c("all", "same", "diff", "hunting", "breeding", "diffhunting"))) %>%
+  ggplot(mapping = aes(x = subset, y = est, group = split, shape = split)) +
+  geom_point(size = 3, position=position_dodge(width=0.5)) +
+  geom_errorbar(aes(ymin = low, ymax = high), position=position_dodge(width=0.5)) +
+  labs(x = NULL, y = "Bhattacharrya Distance", shape=NULL) +
+  scale_shape_manual(values = c(1, 16),
+                     labels= c('Before Encounter', 'After Encounter')) +
+  scale_x_discrete(breaks = c("all", "same", "diff",  "hunting", "breeding", "diffhunting"),
+                   labels=c('ALL', 'SAME SEX', 'DIFF SEX', 
+                            "LATE FALL", "SPRING", 'DIFF SEX \nLATE FALL'),
+                   expand=c(0.1,0.1)) +
+  scale_y_continuous(expand = c(0, 0.001), limits=c(0,4.0)) + #removes space between bars and axis line
+  geom_text(aes(label=c("n=35",NA,"n=14",NA,
+                        "n=21",NA,"n=21",NA,"n=8",NA,"n=12",NA)), 
+            y = rep(c(3.5), times = 12), size=5) +
   theme_bw() + #get rid of background
   theme(panel.border = element_blank(), panel.grid.major = element_blank(), axis.ticks.x = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
-        text=element_text(size=20), legend.position =c(.15,.90))
+        text=element_text(size=20), legend.position =c(.15,.95))
 
+#-----------------------------------------------------------------------------------------
+#part 4: code to generate Fig. x
+
+#load relative percent overlap after distances for various subsets of encounters btwn:
+#all individuals, same sex individuals, diff sex individuals, individuals during late fall, individuals during spring, diff sex individuals during late fall
+
+percent_overlap_after <- read_csv("percentoverlap100.csv")
+
+percent_overlap_after %>%
+  filter(subset != "ff",
+         subset != "mm") %>%
+  mutate(subset = factor(subset, levels = c("all", "same", "diff", 
+                                            "hunting", "breeding",
+                                            "diffhunting"))) %>%
+  ggplot(mapping = aes(x=subset, y=est)) +
+  geom_point(size=3) +
+  geom_errorbar(aes(ymin=low, ymax=high), width = .25, position = position_dodge(0.85)) +
+  labs(x=NULL, y="Change in Overlap \n(After / Before Encounter)", pattern=NULL) +
+  scale_x_discrete(labels=c('ALL', 'SAME SEX', 'DIFF SEX', 
+                            "LATE FALL", "SPRING", 'DIFF SEX \nLATE FALL'),
+                   expand=c(0.05,0.05)) +
+  scale_y_continuous(expand = c(0, 0.001), breaks = c(0, 0.25, 0.5, 0.75, 1.0, 1.25),
+                     limits=c(0,1.5)) + #removes space between bars and axis line
+  geom_text(aes(label=c("n=35", "n=14", "n=21", "n=21", "n=8", "n=12")), 
+            y = rep(c(1.25), times = 6), size=5) +
+  theme_bw() + #get rid of background
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), axis.ticks.x = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
+        text=element_text(size=20), axis.text.x = element_text(hjust=0.75), legend.position =c(.15,.90))
+
+#-----------------------------------------------------------------------------------------
+#part 5: code to generate Fig. x 
+#showing difference in relative overlap after/before for encounters at different thresholds
+percent_overlap_after <- read_csv("percentoverlap500m.csv")
+
+#create plot for subsets with all encounters regardless of sex
+all <- percent_overlap_after %>%
+  filter(subset %in% c("all", "hunting")) %>%
+  mutate(subset=factor(subset, levels = c("all", "hunting"))) %>%
+  ggplot(mapping=aes(x=threshold, y=est, group=subset, shape=subset)) +
+  geom_point(size = 3, position=position_dodge(width=25)) +
+  geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=25)) +
+  scale_shape_manual(values = c(1, 4, 19, 8),
+                     labels=c("All Encounters", "Late Fall \nEncounters")) +
+  labs(x=NULL, y = NULL, shape=NULL) +
+  scale_x_continuous(breaks=c(50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550)) +
+  scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0,1.3)) +
+  geom_text(aes(label=c("*", "*", #50 all hunting
+                        "*", "*", #100 all hunting
+                        NA, "*", #200 all hunting
+                        NA, NA, NA, NA, NA, NA), #300 400 500
+                y = rep(c(1.2), times = 12)), size=8, position=position_dodge(width=28)) +
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
+        text=element_text(size=20), legend.direction="vertical")
+
+#create plot for subsets with only encounters for different sex individuals
+diff <- percent_overlap_after %>%
+  filter(subset %in% c("diff", "diffhunting")) %>%
+  mutate(subset=factor(subset, levels = c("diff", "diffhunting"))) %>%
+  ggplot(mapping=aes(x=threshold, y=est, group=subset, shape=subset)) +
+  geom_point(size = 3, position=position_dodge(width=25)) +
+  geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=25)) +
+  scale_shape_manual(values = c(19, 8),
+                     labels=c("Different Sex \nEncounters", "Different Sex \nLate Fall Encounters")) +
+  labs(x="Encounter Threshold (m)", y = NULL, shape=NULL) +
+  scale_x_continuous(breaks=c(50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550)) +
+  scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0,1.3)) +
+  geom_text(aes(label=c(NA, "*", #50 diff diffhunting
+                        "*", "*", #100 diff diffhunting
+                        NA, "*", #200 diff diffhunting
+                        NA, NA, NA, NA, NA, NA), #300 400 500
+                y = rep(c(1.2), times = 12)), size=8, position=position_dodge(width=28)) +
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
+        text=element_text(size=20), legend.direction="vertical")
+
+#put plots together
+yaxis <- ggdraw() + 
+  draw_label("Change in Overlap (After / Before Encounter)", size=25,angle=90, x=0.5)
+
+plot_grid(yaxis, 
+          plot_grid(all, diff, ncol=1,
+                    align = "v"),
+          ncol=2, nrow=1, rel_widths=c(0.05,1))
+
+#-----------------------------------------------------------------------------------------
+#part 6: code to generate supplemental figures (difference in overlap for individuals)
+
+#not yet in here because they require access to metadata; need data owner's permission to post
 
