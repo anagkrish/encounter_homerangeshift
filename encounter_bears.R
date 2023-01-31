@@ -11,6 +11,7 @@ library(pals)
 library(ggpattern)
 
 #function to calculate overlap between individuals before/after encounter
+#returns a list of overlap before and overlap after
 get_overlap = function(data, name1, name2, date_encounter, timestart, timestop) {
   
   names <- c()
@@ -68,9 +69,65 @@ get_overlap = function(data, name1, name2, date_encounter, timestart, timestop) 
   
 }
 
+#function to calculate overlap within individual home range before/after encounter 
+#returns a list of overlap for individual 1 and overlap for individual 2
+get_overlap = function(dat, name1, name2, date_encounter, timestart, timestop) {
+  
+  names <- c()
+  for (i in dat) {
+    names <- c(names,i[1]@info$identity)
+  }
+  
+  id1 <- dat[[which(names==name1)]]
+  id1 <- id1[id1$timestamp > timestart,]
+  id1 <- id1[id1$timestamp < timestop,] #subset individual 1 between specified dates
+  
+  id2 <- dat[[which(names==name2)]]
+  id2 <- id2[id2$timestamp > timestart,]
+  id2 <- id2[id2$timestamp < timestop,] #subset individual 2 between specified dates
+  
+  ind1 <- list(id1[id1$timestamp < date_encounter,],
+               id1[id1$timestamp > date_encounter,])
+  
+  ind2 <- list(id2[id2$timestamp < date_encounter,],
+               id2[id2$timestamp > date_encounter,])
+  
+  #standardize projections
+  ctmm:::projection(ind1[1]) <- median(ind1)   #correct the projection --Qianru
+  ctmm:::projection(ind1[2]) <- median(ind1)   #correct the projection --Qianru
+  ctmm:::projection(ind2[1]) <- median(ind1)   #correct the projection --Qianru
+  ctmm:::projection(ind2[2]) <- median(ind1)   #correct the projection --Qianru
+  
+  akde_all <- function(d){
+    guess <- map(d, ctmm.guess, interactive = FALSE)
+    fit <- map2(d, guess, ctmm.select, cores = 4, trace = 2) #use all cores
+    #akde_final <- map2(data, fit, akde)
+    return(fit)
+    #, akde = akde_final))
+  }
+  
+  seq_tele <- list(ind1 = ind1, ind2 = ind2)
+  model_list <- foreach(i = seq_along(seq_tele), 
+                        .packages = c("ctmm","lubridate","tidyverse","purrr","stringr")) %dopar% {
+                          akde_all(seq_tele[[i]])}
+  
+  ind1_fit <- model_list[[1]]
+  ind2_fit <- model_list[[2]]
+  
+  #calculate UDS overlap of home ranges before and after encounter
+  UDS_ind1 <- akde(seq_tele[[1]], ind1_fit)
+  UDS_ind2 <- akde(seq_tele[[2]], ind2_fit)
+  
+  #calculate overlap of home ranges before and after encounter
+  ind1_overlap <- overlap(UDS_ind1)
+  ind2_overlap <- overlap(UDS_ind2)
+  
+  return(list(ind1_overlap, ind2_overlap))
+  
+}
+
 #-----------------------------------------------------------------------------------------
-#part 1: calculate overlaps for all 29 encounter pairs
-#info on all 29 pairs, including time of encounter and time range, included in file bearpairs_final.csv
+#part 1: calculate overlaps across selected individuals
 
 #initialize folder to store overlap objects in
 folder <- "/your/folder/name/here"
@@ -107,6 +164,7 @@ foreach (i = seq_along(bearpairs$time),
 before <- list()
 after <- list() #initialize empty lists
 
+#(optional) can extract and store UDS values as well
 uds_vals <- data.frame(pair=NA, 
                        uds_before_low=NA, uds_before_mean=NA, uds_before_high=NA,
                        uds_after_low=NA, uds_after_mean=NA, uds_after_high=NA)
