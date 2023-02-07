@@ -22,12 +22,11 @@ This repo contains the code and additional data required to reproduce the result
   - low: low est for bhattacharyya distance
   - est: mean est for bhattacharyya distance
   - high: high est for bhattacharyya distance
-- percentoverlap100m.csv: population-level overlap between home ranges after encounters within 100m as a percent of the overlap of home ranges before encounter. 
+- percentoverlap500m.csv: population-level overlap between home ranges after encounters within 500m as a percent of the overlap of home ranges before encounter. 
   - subset: describes selected group of individuals (all encounters, encounters btwn same sex individuals, encounters btwn diff sex individuals, encounters in late fall, encounters in spring, encounters btwn diff sex individuals in late fall)
   - low: low est for percent overlap (after/before)
   - est: mean est for percent overlap (after/before)
   - high: high est for percent overlap (after/before)
-- percentoverlap500m.csv: same as percentoverlap100m.csv but for encounters within 500m.
 - udsvalsbearsbtwn100.csv: UDS percent overlap for each pair (n=35) of encounters with 100m before and after the encounter. Shows change between overlap of both individuals' home ranges before and after encounter. 
 - udsvalsbearswin100.csv: UDS percent overlap for each individual in pair (n=35) of encounters with 100m before and after the encounter. Shows change within overlap of individual home ranges for each individual in pair before and after encounter. 
       

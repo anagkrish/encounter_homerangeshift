@@ -127,12 +127,87 @@ get_overlap_individual = function(dat, name1, name2, date_encounter, timestart, 
 }
 
 #-----------------------------------------------------------------------------------------
-#part 1: calculate overlaps across selected individuals
+#part 1: get overlaps from original movement data
+
+#load bear movement data
+bears <- "/movebank/file/here"
+
+#filter for individuals with overlapping time
+done <- list()
+pair1 <- c()
+pair2 <- c()
+overlap <- c() 
+
+for (i in bears) {
+  done <- c(done,i@info$identity) #keep track of individuals you've already checked
+  
+  for (j in bears) {
+    
+    if (j@info$identity != i@info$identity && j@info$identity %notin% done) {
+        
+      #check for overlap between time periods
+      if(int_overlaps(as.interval(i$timestamp[1],tail(i$timestamp,1)), 
+                      as.interval(j$timestamp[1],tail(j$timestamp,1))) == TRUE) {
+        
+        pair1 <- c(pair1, i@info$identity)
+        pair2 <- c(pair2, j@info$identity)
+        
+        #calculate overlap time in weeks
+        overlap <- c(overlap, as.duration(intersect(as.interval(i$timestamp[1],
+                                                                tail(i$timestamp,1)), 
+                                                    as.interval(j$timestamp[1],
+                                                                tail(j$timestamp,1))))/604800)
+        
+      }
+    }
+  }
+}
+
+candidates <- data.frame(pair1,pair2,overlap)
+
+#check distance between all candidates
+
+threshold = 100 #encounter threshold in meters
+
+dists <- data.frame() #initialize data frame
+
+for (i in seq_along(candidates$pair1)) { 
+  
+  dat <- bears[c(which(names==candidates$pair1[i]),
+                 which(names==candidates$pair2[i]))] 
+  
+  fits <- list(bearfits[[which(names==candidates$pair1[i])]][[1]], 
+               bearfits[[which(names==candidates$pair2[i])]][[1]])
+  
+  dat[[2]]@info$projection <- dat[[1]]@info$projection #correct projection
+  
+  #calculates point distances with uncertainty between two movement tracks
+  diffs <- ctmm::distances(dat, fits) %>%
+    filter(est<=threshold) %>%
+    mutate(pair1=dat[[1]]@info$identity, pair2=dat[[2]]@info$identity) %>%
+    dplyr::select(c("pair1","pair2","timestamp","low","est","high"))
+  
+  #contains ALL distances for each pair that are estimated below threshold; 
+  #may be in same time period across multiple years depending on if there were multiple encounters/individual 
+  dists <- rbind(dists, diffs)
+  
+}
+
+#summarize individual pairs (by year for pairs with multiple encounters) 
+#and lowest estimated encounter distance for each pair
+
+summary <- dists100 %>%
+  group_by(pair1, pair2, year(timestamp)) %>%
+  summarize(est=min(est))
+
+#-----------------------------------------------------------------------------------------
+#part 2: calculate overlaps across selected individuals
 
 #initialize folder to store overlap objects in
 folder <- "/your/folder/name/here"
 
-#load file with selected bear pairs (n=35)
+#load file with candidate pairs
+#for threshold=100, n=35
 bearpairs <- read_csv("bearpairs100.csv")
 
 #load bears data
@@ -140,6 +215,7 @@ bearpairs <- read_csv("bearpairs100.csv")
 load("/your/grizzly/data/here")
 
 #run overlap function on all individuals per pair 
+#written to run in parallel (but can be modified)
 foreach (i = seq_along(bearpairs$time),
          .packages = c("tidyverse","ctmm","lubridate","foreach","doSNOW","parallel"),
          .combine = c) %dopar% {
@@ -159,7 +235,7 @@ foreach (i = seq_along(bearpairs$time),
            }
 
 #-----------------------------------------------------------------------------------------
-#part 2: load all overlaps from folder and get UDS overlaps
+#part 3: load all overlaps from folder and get UDS overlaps
 
 before <- list()
 after <- list() #initialize empty lists
@@ -228,7 +304,7 @@ names(CI) <- ctmm:::NAMES.CI
 sigfig(100*CI)
 
 #-----------------------------------------------------------------------------------------
-#part 3: code to generate Fig. 2
+#part 4: code to generate Fig. 2
 
 #load bhattacharyya distances for various subsets of encounters btwn:
 #all individuals, same sex individuals, diff sex individuals, individuals during late fall, individuals during spring, diff sex individuals during late fall
@@ -258,37 +334,7 @@ bhattacharyya %>%
         text=element_text(size=20), legend.position =c(.15,.95))
 
 #-----------------------------------------------------------------------------------------
-#part 4: code to generate Fig. x
-
-#load relative percent overlap after distances for various subsets of encounters btwn:
-#all individuals, same sex individuals, diff sex individuals, individuals during late fall, individuals during spring, diff sex individuals during late fall
-
-percent_overlap_after <- read_csv("percentoverlap100.csv")
-
-percent_overlap_after %>%
-  filter(subset != "ff",
-         subset != "mm") %>%
-  mutate(subset = factor(subset, levels = c("all", "same", "diff", 
-                                            "hunting", "breeding",
-                                            "diffhunting"))) %>%
-  ggplot(mapping = aes(x=subset, y=est)) +
-  geom_point(size=3) +
-  geom_errorbar(aes(ymin=low, ymax=high), width = .25, position = position_dodge(0.85)) +
-  labs(x=NULL, y="Change in Overlap \n(After / Before Encounter)", pattern=NULL) +
-  scale_x_discrete(labels=c('ALL', 'SAME SEX', 'DIFF SEX', 
-                            "LATE FALL", "SPRING", 'DIFF SEX \nLATE FALL'),
-                   expand=c(0.05,0.05)) +
-  scale_y_continuous(expand = c(0, 0.001), breaks = c(0, 0.25, 0.5, 0.75, 1.0, 1.25),
-                     limits=c(0,1.5)) + #removes space between bars and axis line
-  geom_text(aes(label=c("n=35", "n=14", "n=21", "n=21", "n=8", "n=12")), 
-            y = rep(c(1.25), times = 6), size=5) +
-  theme_bw() + #get rid of background
-  theme(panel.border = element_blank(), panel.grid.major = element_blank(), axis.ticks.x = element_blank(),
-        panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
-        text=element_text(size=20), axis.text.x = element_text(hjust=0.75), legend.position =c(.15,.90))
-
-#-----------------------------------------------------------------------------------------
-#part 5: code to generate Fig. x 
+#part 5: code to generate Fig 3
 #showing difference in relative overlap after/before for encounters at different thresholds
 percent_overlap_after <- read_csv("percentoverlap500m.csv")
 
@@ -346,7 +392,7 @@ plot_grid(yaxis,
           ncol=2, nrow=1, rel_widths=c(0.05,1))
 
 #-----------------------------------------------------------------------------------------
-#part 6: code to generate supplemental figures (difference in overlap for individuals)
+#part 6: code to generate supplemental figures
 
 #not yet in here because they require access to metadata; need data owner's permission to post
 
