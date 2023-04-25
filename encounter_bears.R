@@ -176,8 +176,12 @@ for (i in seq_along(candidates$pair1)) {
   dat <- bears[c(which(names==candidates$pair1[i]),
                  which(names==candidates$pair2[i]))] 
   
-  fits <- list(bearfits[[which(names==candidates$pair1[i])]][[1]], 
-               bearfits[[which(names==candidates$pair2[i])]][[1]])
+  #fit ctmm models to data
+  fits <- list()
+  for(i in seq_along(dat)) {
+    guess <- ctmm.guess(dat[[i]],interactive=FALSE)
+    fits[[i]] <- ctmm.select(dat[[i]],guess, trace=2,cores=2)
+  }
   
   dat[[2]]@info$projection <- dat[[1]]@info$projection #correct projection
   
@@ -196,7 +200,7 @@ for (i in seq_along(candidates$pair1)) {
 #summarize individual pairs (by year for pairs with multiple encounters) 
 #and lowest estimated encounter distance for each pair
 
-summary <- dists100 %>%
+summary <- dists %>%
   group_by(pair1, pair2, year(timestamp)) %>%
   summarize(est=min(est))
 
@@ -208,7 +212,7 @@ folder <- "/your/folder/name/here"
 
 #load file with candidate pairs
 #for threshold=100, n=35
-bearpairs <- read_csv("bearpairs100.csv")
+bearpairs <- read_csv("bearpairsto500m.csv")
 
 #load bears data
 #data should be in format of a large list where each element is a telemetry object for each individual 
@@ -308,26 +312,30 @@ sigfig(100*CI)
 
 #load bhattacharyya distances for various subsets of encounters btwn:
 #all individuals, same sex individuals, diff sex individuals, individuals during late fall, individuals during spring, diff sex individuals during late fall
-bhattacharyya <- read_csv("bhattacharyya100.csv")
+bhattacharyya <- read_csv("bhattacharyya500.csv")
 
-bhattacharyya %>%
-  filter(subset != "mm", subset != "ff") %>% #filter to desired subsets
+bhattacharyya %>% 
+  filter(threshold==100) %>% #file has bds for all encounters, figure is just at 100m
+  filter(subset %ni% c("male male", "female female", "cubs")) %>%
   mutate(split = factor(split, levels = c("before", "after")), #make variable as factor so bars are in the correct order
-         subset = factor(subset, levels = c("all", "same", "diff", "hunting", "breeding", "diffhunting"))) %>%
+         subset = factor(subset, levels = c("all", "same sex", "diff sex", 
+                                            "late fall", "spring", "diff sex late fall"))) %>%
+  unite(col="splitsubset", c("split","subset"), remove=FALSE) %>%
   ggplot(mapping = aes(x = subset, y = est, group = split, shape = split)) +
   geom_point(size = 3, position=position_dodge(width=0.5)) +
   geom_errorbar(aes(ymin = low, ymax = high), position=position_dodge(width=0.5)) +
   labs(x = NULL, y = "Bhattacharrya Distance", shape=NULL) +
   scale_shape_manual(values = c(1, 16),
                      labels= c('Before Encounter', 'After Encounter')) +
-  scale_x_discrete(breaks = c("all", "same", "diff",  "hunting", "breeding", "diffhunting"),
+  scale_x_discrete(breaks = c("all", "same sex", "diff sex",
+                              "late fall", "spring", "diff sex late fall"),
                    labels=c('ALL', 'SAME SEX', 'DIFF SEX', 
                             "LATE FALL", "SPRING", 'DIFF SEX \nLATE FALL'),
                    expand=c(0.1,0.1)) +
-  scale_y_continuous(expand = c(0, 0.001), limits=c(0,4.0)) + #removes space between bars and axis line
-  geom_text(aes(label=c("n=35",NA,"n=14",NA,
-                        "n=21",NA,"n=21",NA,"n=8",NA,"n=12",NA)), 
-            y = rep(c(3.5), times = 12), size=5) +
+  scale_y_continuous(expand = c(0, 0.001), limits=c(0,2.5)) + #removes space between bars and axis line
+  geom_text(aes(label=c("n=88", "", "n=52", "", "n=29", "", "n=46", "", "n=36", "", "n=23", ""), 
+                #all, diff sex, diff sex late fall, late fall, same sex, spring, 
+                y = rep(c(2.05), times = 12)), size=5, position=position_dodge(width=0.5)) +
   theme_bw() + #get rid of background
   theme(panel.border = element_blank(), panel.grid.major = element_blank(), axis.ticks.x = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
@@ -336,34 +344,31 @@ bhattacharyya %>%
 #-----------------------------------------------------------------------------------------
 #part 5: code to generate Fig 3
 #showing difference in relative overlap after/before for encounters at different thresholds
-percent_overlap_after <- read_csv("percentoverlap500m.csv")
+percent_overlap <- read_csv("percentoverlap500m.csv")
 
 #create plot for subsets with all encounters regardless of sex
-all <- percent_overlap_after %>%
-  filter(subset %in% c("all", "hunting")) %>%
-  mutate(subset=factor(subset, levels = c("all", "hunting"))) %>%
+all <- percent_overlap %>%
+  filter(subset %in% c("all", "late fall")) %>%
+  mutate(subset=factor(subset, levels = c("all", "late fall"))) %>%
   ggplot(mapping=aes(x=threshold, y=est, group=subset, shape=subset)) +
   geom_point(size = 3, position=position_dodge(width=25)) +
-  geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=25)) +
+  geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=28)) +
   scale_shape_manual(values = c(1, 4, 19, 8),
                      labels=c("All Encounters", "Late Fall \nEncounters")) +
   labs(x=NULL, y = NULL, shape=NULL) +
   scale_x_continuous(breaks=c(50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550)) +
   scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0,1.3)) +
-  geom_text(aes(label=c("*", "*", #50 all hunting
-                        "*", "*", #100 all hunting
-                        NA, "*", #200 all hunting
-                        NA, NA, NA, NA, NA, NA), #300 400 500
+  geom_text(aes(label=c("*","*","*","*","","", #all 50 100 200 300 400 500
+                        "*","*","*","","",""), #all hunting 50 100 200 300 400 500
                 y = rep(c(1.2), times = 12)), size=8, position=position_dodge(width=28)) +
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
         text=element_text(size=20), legend.direction="vertical")
 
-#create plot for subsets with only encounters for different sex individuals
-diff <- percent_overlap_after %>%
-  filter(subset %in% c("diff", "diffhunting")) %>%
-  mutate(subset=factor(subset, levels = c("diff", "diffhunting"))) %>%
+diff <- rel_overlap %>%
+  filter(subset %in% c("diff sex", "diff sex late fall")) %>%
+  mutate(subset=factor(subset, levels = c("diff sex", "diff sex late fall"))) %>%
   ggplot(mapping=aes(x=threshold, y=est, group=subset, shape=subset)) +
   geom_point(size = 3, position=position_dodge(width=25)) +
   geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=25)) +
@@ -372,24 +377,22 @@ diff <- percent_overlap_after %>%
   labs(x="Encounter Threshold (m)", y = NULL, shape=NULL) +
   scale_x_continuous(breaks=c(50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550)) +
   scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0,1.3)) +
-  geom_text(aes(label=c(NA, "*", #50 diff diffhunting
-                        "*", "*", #100 diff diffhunting
-                        NA, "*", #200 diff diffhunting
-                        NA, NA, NA, NA, NA, NA), #300 400 500
+  geom_text(aes(label= c("", "*", "*", "*", "", "", #diff 50 100 200 300 400 500
+                         "", "*", "*", "*", "", ""), #diff hunting50 100 200 300 400 500
                 y = rep(c(1.2), times = 12)), size=8, position=position_dodge(width=28)) +
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
         text=element_text(size=20), legend.direction="vertical")
 
-#put plots together
-yaxis <- ggdraw() + 
-  draw_label("Change in Overlap (After / Before Encounter)", size=25,angle=90, x=0.5)
+yaxis <- cowplot::ggdraw() + 
+  cowplot::draw_label("Change in Overlap (After / Before Encounter)", size=25,angle=90, x=0.5)
 
-plot_grid(yaxis, 
-          plot_grid(all, diff, ncol=1,
-                    align = "v"),
-          ncol=2, nrow=1, rel_widths=c(0.05,1))
+cowplot::plot_grid(yaxis, 
+                   cowplot::plot_grid(all, diff, ncol=1,
+                                      align = "v"),
+                   ncol=2, nrow=1, rel_widths=c(0.05,1))
+
 
 #-----------------------------------------------------------------------------------------
 #part 6: code to generate supplemental figures
