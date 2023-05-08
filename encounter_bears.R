@@ -333,9 +333,10 @@ bhattacharyya %>%
                             "LATE FALL", "SPRING", 'DIFF SEX \nLATE FALL'),
                    expand=c(0.1,0.1)) +
   scale_y_continuous(expand = c(0, 0.001), limits=c(0,2.5)) + #removes space between bars and axis line
-  geom_text(aes(label=c("n=88", "", "n=52", "", "n=29", "", "n=46", "", "n=36", "", "n=23", ""), 
+  geom_text(aes(label=c("n=44\n*", "", "n=26\n*", "", "n=15\n*", "", "n=26\n*", "", "n=18\n", "", "n=10\n", ""), 
                 #all, diff sex, diff sex late fall, late fall, same sex, spring, 
-                y = rep(c(2.05), times = 12)), size=5, position=position_dodge(width=0.5)) +
+                #also add stars to aic indicating different distributions
+                y = rep(c(1.9), times = 12)), size=5, position=position_dodge(width=0.5)) +
   theme_bw() + #get rid of background
   theme(panel.border = element_blank(), panel.grid.major = element_blank(), axis.ticks.x = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
