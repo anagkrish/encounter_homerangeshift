@@ -1,4 +1,4 @@
-#This file contains the code to fit home range models and calculate overlap for all 29 bear encounters 
+#This file contains the code to fit home range models and calculate overlap for all bear encounters 
 #and also to run the meta population level analysis showing changes in overlap following encounters.
 
 #lodd libraries
@@ -310,58 +310,61 @@ sigfig(100*CI)
 #-----------------------------------------------------------------------------------------
 #part 4: code to generate Fig. 2
 
-#load bhattacharyya distances for various subsets of encounters btwn:
+#load relative overlap for various subsets of encounters at 100m:
 #all individuals, same sex individuals, diff sex individuals, individuals during late fall, individuals during spring, diff sex individuals during late fall
-bhattacharyya <- read_csv("bhattacharyya500.csv")
+rel_overlap <- read_csv("percentoverlap500m.csv")
 
-bhattacharyya %>% 
-  filter(threshold==100) %>% #file has bds for all encounters, figure is just at 100m
-  filter(subset %ni% c("male male", "female female", "cubs")) %>%
-  mutate(split = factor(split, levels = c("before", "after")), #make variable as factor so bars are in the correct order
-         subset = factor(subset, levels = c("all", "same sex", "diff sex", 
-                                            "late fall", "spring", "diff sex late fall"))) %>%
-  unite(col="splitsubset", c("split","subset"), remove=FALSE) %>%
-  ggplot(mapping = aes(x = subset, y = est, group = split, shape = split)) +
-  geom_point(size = 3, position=position_dodge(width=0.5)) +
-  geom_errorbar(aes(ymin = low, ymax = high), position=position_dodge(width=0.5)) +
-  labs(x = NULL, y = "Bhattacharrya Distance", shape=NULL) +
-  scale_shape_manual(values = c(1, 16),
-                     labels= c('Before Encounter', 'After Encounter')) +
+rel_overlap %>%
+  filter(threshold==100) %>%
+  mutate(subset=factor(subset, levels = c("all", "same sex", "diff sex", 
+                                          "late fall", "spring", "diff sex late fall"))) %>%
+  drop_na(subset) %>%
+  ggplot(mapping=aes(x=subset, y=est)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin=low, ymax=high)) +
+  geom_hline(mapping=aes(yintercept=1), linetype="dashed") +
   scale_x_discrete(breaks = c("all", "same sex", "diff sex",
                               "late fall", "spring", "diff sex late fall"),
                    labels=c('ALL', 'SAME SEX', 'DIFF SEX', 
                             "LATE FALL", "SPRING", 'DIFF SEX \nLATE FALL'),
                    expand=c(0.1,0.1)) +
-  scale_y_continuous(expand = c(0, 0.001), limits=c(0,2.5)) + #removes space between bars and axis line
-  geom_text(aes(label=c("n=44\n*", "", "n=26\n*", "", "n=15\n*", "", "n=26\n*", "", "n=18\n", "", "n=10\n", ""), 
-                #all, diff sex, diff sex late fall, late fall, same sex, spring, 
-                #also add stars to aic indicating different distributions
-                y = rep(c(1.9), times = 12)), size=5, position=position_dodge(width=0.5)) +
-  theme_bw() + #get rid of background
-  theme(panel.border = element_blank(), panel.grid.major = element_blank(), axis.ticks.x = element_blank(),
+  labs(x=NULL, y = "Change in Relative Overlap Between Individuals \n(After / Before Encounter)") +
+  scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0.2,1.3)) +
+  geom_text(aes(label=c("n=44\n*", "n=26\n", "n=15\n", "n=26\n**", "n=18\n", "n=10\n"), 
+                #all, diff sex, diff sex late fall, late fall, same sex, spring
+                y = rep(c(1.2), times = 6)), size=6) +
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
-        text=element_text(size=20), legend.position =c(.15,.95))
+        text=element_text(size=20), legend.direction="vertical")
 
 #-----------------------------------------------------------------------------------------
 #part 5: code to generate Fig 3
-#showing difference in relative overlap after/before for encounters at different thresholds
+#showing difference in relative overlap after/before for encounters at different thresholds, subsetted by all vs different sex
 percent_overlap <- read_csv("percentoverlap500m.csv")
 
-#create plot for subsets with all encounters regardless of sex
-all <- percent_overlap %>%
+all <- rel_overlap %>%
   filter(subset %in% c("all", "late fall")) %>%
   mutate(subset=factor(subset, levels = c("all", "late fall"))) %>%
   ggplot(mapping=aes(x=threshold, y=est, group=subset, shape=subset)) +
-  geom_point(size = 3, position=position_dodge(width=25)) +
-  geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=28)) +
+  geom_point(size = 3, position=position_dodge(width=50)) +
+  geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=50)) +
+  geom_hline(mapping=aes(yintercept=1), linetype="dashed") +
   scale_shape_manual(values = c(1, 4, 19, 8),
                      labels=c("All Encounters", "Late Fall \nEncounters")) +
   labs(x=NULL, y = NULL, shape=NULL) +
   scale_x_continuous(breaks=c(50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550)) +
-  scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0,1.3)) +
-  geom_text(aes(label=c("*","*","*","*","","", #all 50 100 200 300 400 500
-                        "*","*","*","","",""), #all hunting 50 100 200 300 400 500
-                y = rep(c(1.2), times = 12)), size=8, position=position_dodge(width=28)) +
+  scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0.2,1.3)) +
+  geom_text(aes(label=c("*","*","","","","", #all 50 100 200 300 400 500 #pval
+            "*","*","*","*","",""), #all hunting 50 100 200 300 400 500 #pval
+    y = rep(c(1.2), times = 12)), size=8, position=position_dodge(width=50)) +
+  geom_text(aes(label= c("(n)", "", "", "", "", "", "", "", "", "", "", ""), #all hunting 50 100 200 300 400 500 pval
+                y = rep(c(0.25), times = 12)), size=5,
+            nudge_x= -39) +
+  geom_text(aes(label= c("27", "44", "68", "88", "97", "103", #all 50 100 200 300 400 500 pval
+                         "15", "26", "38", "46", "53", "56"), #all hunting 50 100 200 300 400 500 pval
+                y = rep(c(0.25), times = 12)), size=5,
+            position=position_dodge(width=50)) +
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
@@ -371,29 +374,36 @@ diff <- rel_overlap %>%
   filter(subset %in% c("diff sex", "diff sex late fall")) %>%
   mutate(subset=factor(subset, levels = c("diff sex", "diff sex late fall"))) %>%
   ggplot(mapping=aes(x=threshold, y=est, group=subset, shape=subset)) +
-  geom_point(size = 3, position=position_dodge(width=25)) +
-  geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=25)) +
+  geom_point(size = 3, position=position_dodge(width=50)) +
+  geom_errorbar(aes(ymin=low, ymax=high), position=position_dodge(width=50)) +
+  geom_hline(mapping=aes(yintercept=1), linetype="dashed") +
   scale_shape_manual(values = c(19, 8),
                      labels=c("Different Sex \nEncounters", "Different Sex \nLate Fall Encounters")) +
   labs(x="Encounter Threshold (m)", y = NULL, shape=NULL) +
   scale_x_continuous(breaks=c(50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550)) +
-  scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0,1.3)) +
-  geom_text(aes(label= c("", "*", "*", "*", "", "", #diff 50 100 200 300 400 500
-                         "", "*", "*", "*", "", ""), #diff hunting50 100 200 300 400 500
-                y = rep(c(1.2), times = 12)), size=8, position=position_dodge(width=28)) +
+  scale_y_continuous(breaks=c(0.25, 0.50, 0.75, 1.00, 1.25), limits=c(0.2,1.3)) +
+  geom_text(aes(label= c("", "", "*", "", "", "", #diff 50 100 200 300 400 500 pval
+             "**", "", "*", "*", "", ""), #diff hunting50 100 200 300 400 500 pval
+    y = rep(c(1.2), times = 12)), size=8, position=position_dodge(width=50)) +
+  geom_text(aes(label= c("(n)", "", "", "", "", "", "", "", "", "", "", ""), #all hunting 50 100 200 300 400 500 pval
+                y = rep(c(0.25), times = 12)), size=5,
+            nudge_x= -39) +
+  geom_text(aes(label= c("17", "26 ", "39", "52", "55", "57", #diff 50 100 200 300 400 500 pval
+                         "9", "15", "24", "29", "30", "32"), #diff hunting50 100 200 300 400 500 pval
+                y = rep(c(0.25), times = 12)), size=5,
+            position=position_dodge(width=50)) +
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
         text=element_text(size=20), legend.direction="vertical")
 
 yaxis <- cowplot::ggdraw() + 
-  cowplot::draw_label("Change in Overlap (After / Before Encounter)", size=25,angle=90, x=0.5)
+  cowplot::draw_label("Change in Relative Overlap Between Individuals \n(After / Before Encounter)", size=25,angle=90, x=0.5)
 
 cowplot::plot_grid(yaxis, 
                    cowplot::plot_grid(all, diff, ncol=1,
                                       align = "v"),
                    ncol=2, nrow=1, rel_widths=c(0.05,1))
-
 
 #-----------------------------------------------------------------------------------------
 #part 6: code to generate supplemental figures
