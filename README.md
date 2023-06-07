@@ -1,6 +1,21 @@
-# Code and Data Associated with <<Paper name here>>
+# Code and Data Associated with Intraspecific encounters can induce home-range shifts"
 
-This repo contains the code and additional data required to reproduce the results of <<paper name here>>. More detail on each file is provided below:
+<b>Authors:</b> William F. Fagan<sup>1,*</sup>, Ananke Krishnan<sup>1§</sup>, Qianru Liao<sup>1§</sup>, Christen H. Fleming<sup>1,2,3</sup>, Daisy Liao<sup>1</sup>, Clayton Lamb<sup>4</sup>, Brent Patterson<sup>5</sup>, Tyler Wheeldon<sup>5</sup>, Ricardo Martinez-Garcia<sup>3,6</sup>, Jorge F. S. Menezes<sup>3</sup>, Michael J. Noonan<sup>7</sup>, Eliezer Gurarie<sup>8</sup>, and Justin M. Calabrese<sup>1,3,9</sup>
+
+<sup>1</sup>Department of Biology, University of Maryland, College Park, MD, United States
+<sup>2</sup>Smithsonian Conservation Biology Institute, National Zoological Park, Front Royal, VA, United States 
+<sup>3</sup>Center for Advanced Systems Understanding (CASUS), Helmholtz-Zentrum Dresden-Rosendorf (HZDR), Görlitz, Germany
+<sup>4</sup>Department of Biology, University of British Columbia, Kelowna, BC, Canada
+<sup>5</sup>Ontario Ministry of Natural Resources and Forestry, Trent University, Peterborough, ON, Canada
+<sup>6</sup>ICTP - South American Institute for Fundamental Research & Instituto de Física Teórica, Universidade Estadual Paulista - UNESP, São Paulo, SP, Brazil.
+<sup>7</sup>Department of Biology, The University of British Columbia Okanagan, Kelowna, BC, Canada
+<sup>8</sup>Department of Environmental Biology, SUNY Environmental Science and Forestry, Syracuse, NY, United States
+<sup>9</sup>Department of Ecological Modelling, Helmholtz Centre for Environmental Research-UFZ, Leipzig, Germany
+
+<sup>*</sup>Correspondence Author
+<sup>§</sup>Joint Second Authors
+
+This repo contains the code and additional data required to reproduce the results in this manuscript. More detail on each file is provided below:
 
 ## R Files
 - encounter_homeranges.R: Code to calculate home range shifts before and after the encounter for both individuals involved in encounter. Used to generate data for Fig. 1A-D.
@@ -8,30 +23,27 @@ This repo contains the code and additional data required to reproduce the result
 - encounter_bears.R: Code to calculate home range shifts for bears and run population level comparisons on individuals' home ranges before and after encounters. Used to generate data for Fig. 2.
 
 ## Data Files
-- bearpairs100m.csv: selected pairs that came within 100m of each other (n=35). Columns are as follows:
-  - pair1: individual 1
-  - pair2: individual 2
+- bearpairsto500m.csv: all pairs that came within up to 500m of each other (n=103). Columns are as follows:
+  - bear1_id: individual 1
+  - bear2_id: individual 2
   - time: year-month-day hour-minute-second of encounter
   - dist: minimum distance between individuals at encounter (in meters)
   - trackstart: beginning of overall track for both individuals
   - trackstop: ending of overall track for both individuals.
-- bearpairs500m.csv: same as bearpairs100m but for all pairs that came within up to 500m of each other.
-- bhattacharyya.csv: bhattacharyya distances between home ranges before and after encounters within 100m,calculated from population-level analysis of homeranges. Columns are as follows:
+- bhattacharyya.csv: bhattacharyya distances between home ranges before and after encounters within 500m,calculated from population-level analysis of homeranges. Columns are as follows:
   - split: before vs after encounter
   - subset: describes selected group of individuals (all encounters, encounters btwn same sex individuals, encounters btwn diff sex individuals, encounters in late fall, encounters in spring, encounters btwn diff sex individuals in late fall)
   - low: low est for bhattacharyya distance
   - est: mean est for bhattacharyya distance
   - high: high est for bhattacharyya distance
-- percentoverlap500m.csv: population-level overlap between home ranges after encounters within 500m as a percent of the overlap of home ranges before encounter. 
+- percentoverlap500m.csv: population-level overlap between home ranges after encounters up to 500m as a percent of the overlap of home ranges before encounter. 
   - subset: describes selected group of individuals (all encounters, encounters btwn same sex individuals, encounters btwn diff sex individuals, encounters in late fall, encounters in spring, encounters btwn diff sex individuals in late fall)
   - low: low est for percent overlap (after/before)
   - est: mean est for percent overlap (after/before)
   - high: high est for percent overlap (after/before)
-- udsvalsbearsbtwn100.csv: UDS percent overlap for each pair (n=35) of encounters with 100m before and after the encounter. Shows change between overlap of both individuals' home ranges before and after encounter. 
-- udsvalsbearswin100.csv: UDS percent overlap for each individual in pair (n=35) of encounters with 100m before and after the encounter. Shows change within overlap of individual home ranges for each individual in pair before and after encounter. 
+- uds_btwninds.csv: UDS percent overlap for each individual in pair before and after all encounters (n=103). Shows change between overlap of both individuals' home ranges before and after encounter. 
+- uds_withininds.csv: UDS percent overlap for each individual in pair before and after encounters up to 100m (n=44) . Shows change within overlap of individual home ranges for each individual in pair before and after encounter.
       
-*All other movement data is available on Movebank (insert dataset IDs here)
-      
-      
-      
+*Movement data is available on Movebank.org data as datasets 1614661371 (coyotes) and 1044288582 (grizzly bears).
+
       
