@@ -1,18 +1,28 @@
-# Code and Data Associated with Intraspecific encounters can induce home-range shifts"
+#Intraspecific encounters can induce home-range shifts: Associated R Scripts
 
 <b>Authors:</b> William F. Fagan<sup>1,*</sup>, Ananke Krishnan<sup>1§</sup>, Qianru Liao<sup>1§</sup>, Christen H. Fleming<sup>1,2,3</sup>, Daisy Liao<sup>1</sup>, Clayton Lamb<sup>4</sup>, Brent Patterson<sup>5</sup>, Tyler Wheeldon<sup>5</sup>, Ricardo Martinez-Garcia<sup>3,6</sup>, Jorge F. S. Menezes<sup>3</sup>, Michael J. Noonan<sup>7</sup>, Eliezer Gurarie<sup>8</sup>, and Justin M. Calabrese<sup>1,3,9</sup>
 
 <sup>1</sup>Department of Biology, University of Maryland, College Park, MD, United States
+
 <sup>2</sup>Smithsonian Conservation Biology Institute, National Zoological Park, Front Royal, VA, United States 
+
 <sup>3</sup>Center for Advanced Systems Understanding (CASUS), Helmholtz-Zentrum Dresden-Rosendorf (HZDR), Görlitz, Germany
+
 <sup>4</sup>Department of Biology, University of British Columbia, Kelowna, BC, Canada
+
 <sup>5</sup>Ontario Ministry of Natural Resources and Forestry, Trent University, Peterborough, ON, Canada
+
 <sup>6</sup>ICTP - South American Institute for Fundamental Research & Instituto de Física Teórica, Universidade Estadual Paulista - UNESP, São Paulo, SP, Brazil.
+
 <sup>7</sup>Department of Biology, The University of British Columbia Okanagan, Kelowna, BC, Canada
+
 <sup>8</sup>Department of Environmental Biology, SUNY Environmental Science and Forestry, Syracuse, NY, United States
+
 <sup>9</sup>Department of Ecological Modelling, Helmholtz Centre for Environmental Research-UFZ, Leipzig, Germany
 
+
 <sup>*</sup>Correspondence Author
+
 <sup>§</sup>Joint Second Authors
 
 This repo contains the code and additional data required to reproduce the results in this manuscript. More detail on each file is provided below:
