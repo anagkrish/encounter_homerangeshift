@@ -31,6 +31,7 @@ This repo contains the code and additional data required to reproduce the result
 - encounter_homeranges.R: Code to calculate home range shifts before and after the encounter for both individuals involved in encounter. Used to generate data for Fig. 1A-D.
 - encounter_bls.R: Code to calculate ballistic length scale over sliding windows for a single individual. Used to generate data for Fig. 1E.
 - encounter_bears.R: Code to calculate home range shifts for bears and run population level comparisons on individuals' home ranges before and after encounters. Used to generate data for Fig. 2.
+- supplementalfigs.R: Code to generate supplemental figures from data files (code to generate data files shown in encounter_bears.R). Fig. S3/S4 waiting on data owner permission.
 
 ## Data Files
 - bearpairsto500m.csv: all pairs that came within up to 500m of each other (n=103). Columns are as follows:
