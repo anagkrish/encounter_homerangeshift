@@ -1,5 +1,9 @@
 # Intraspecific encounters can induce home-range shifts: Associated R Scripts
 
+Zenodo archive v1.0.0 (for initial review/preprint)
+
+[![DOI](https://zenodo.org/badge/586006515.svg)](https://zenodo.org/badge/latestdoi/586006515)
+
 <b>Authors:</b> William F. Fagan<sup>1,*</sup>, Ananke Krishnan<sup>1§</sup>, Qianru Liao<sup>1§</sup>, Christen H. Fleming<sup>1,2,3</sup>, Daisy Liao<sup>1</sup>, Clayton Lamb<sup>4</sup>, Brent Patterson<sup>5</sup>, Tyler Wheeldon<sup>5</sup>, Ricardo Martinez-Garcia<sup>3,6</sup>, Jorge F. S. Menezes<sup>3</sup>, Michael J. Noonan<sup>7</sup>, Eliezer Gurarie<sup>8</sup>, and Justin M. Calabrese<sup>1,3,9</sup>
 
 <sup>1</sup>Department of Biology, University of Maryland, College Park, MD, United States
