@@ -192,5 +192,285 @@ grid.draw(grid.arrange(arrangeGrob(grobs = c(ind_plots,
 
 dev.off()
 
-#Fig. S3 & S4 - need data owner permission to post location of carcass pits
+#Fig. S3 & S4 
+#includes both code to calculate carcass pit distances and to make figures
+#posted code but need data owner permission to post actual location of carcass pits
+
+#get location of pits and date ranges active
+carcasspit_locs <- read_csv("carcasspit/file/here") %>%
+  mutate(`date active`=replace_na(strptime(`date active`, format="%d-%b-%y"), 
+                                  as.Date("2000-01-01"))) %>%
+  mutate(`date inactive`=replace_na(strptime(`date inactive`, format="%d-%b-%y"),
+                                    as.Date("2023-04-01"))) #time ranges confirmed by data owner 
+
+#get lat long coordinates for encounter locations (to compare to carcass pit locations)
+encounterlocations <- data.frame("bear1"=bearpairs$pair1,
+                                 "bear2"=bearpairs$pair2,
+                                 "time"=bearpairs$time, "dist"=bearpairs$est,
+                                 "season_breeding"=bearpairs$season_breeding,
+                                 "sex"=bearpairs$sex,
+                                 "midpt_lat"=NA, "midpt_long"=NA,
+                                 "bear1_lat"=NA, "bear1_long"=NA,
+                                 "bear2_lat"=NA, "bear2_long"=NA,
+                                 "dist_to_pit"=NA, "nearest_pit"=NA) %>%
+  mutate(threshold = plyr::round_any(dist, 100, f=ceiling)) %>%
+  mutate(threshold = as.factor(ifelse(dist <= 50, 50, threshold))) %>%
+  relocate(threshold, .after=dist)
+
+#calculate distances between encounter and carcass pit
+for (i in seq_along(encounterlocations$bear1)) {
+  
+  dat <- bears[c(which(names==encounterlocations$bear1[[i]]),
+                 which(names==encounterlocations$bear2[[i]]))]
+  
+  #used already saved fits; if re-running fits then change this code
+  fits <- list()
+  for(i in seq_along(dat)) {
+    guess <- ctmm.guess(dat[[i]],interactive=FALSE)
+    fits[[i]] <- ctmm.select(dat[[i]],GUESS) #all default ctmm model fit settings, this might take a while to run
+  }
+  
+  #predict tracks and get lat/long of continuous tracks for individuals 
+  #(this is just a way to double check the encounter location)
+  bear1_sim <- predict(dat[[1]],fits[[1]],t=ymd_hms(encounterlocations$time[[i]]), complete=T)
+  bear2_sim <- predict(dat[[2]],fits[[2]],t=ymd_hms(encounterlocations$time[[i]]), complete=T)
+  
+  encounterlocations$bear1_lat[[i]] <- bear1_sim$latitude
+  encounterlocations$bear1_long[[i]] <- bear1_sim$longitude
+  
+  encounterlocations$bear2_lat[[i]] <- bear2_sim$latitude
+  encounterlocations$bear2_long[[i]] <- bear2_sim$longitude
+  
+  projection(dat[[1]]) <- median(dat)
+  projection(dat[[2]]) <- median(dat)
+  
+  #get "midpoint" of bears at encounter time, i.e locaiton of encounter 
+  #(they should be essentially on top of each other)
+  encounter <- midpoint(dat, fits, t=ymd_hms(encounterlocations$time[[i]]), complete=T)
+  
+  encounterlocations$midpt_lat[i] <- encounter$latitude
+  encounterlocations$midpt_long[i] <- encounter$longitude
+  
+  dists <- c()
+  pitnames <- c()
+  
+  for (j in seq_along(carcasspit_locs$pit_name)) {
+    
+    #check to see if pit was active when encounter happened
+    if(as.Date(encounterlocations$time[[i]]) %within% 
+       interval(start=carcasspit_locs$`date active`[[j]],
+                end=carcasspit_locs$`date inactive`[[j]])) {
+      
+      #get carcass pit as a telemetry object 
+      carcasspit_tel <- as.telemetry(data.frame(location.lat=carcasspit_locs$lat[j],
+                                                location.long=carcasspit_locs$long[j],
+                                                timestamp=encounterlocations$time[i],
+                                                individual.local.identifier="pit",
+                                                individual.taxon.canonical.name=NA))
+      
+      #align projections in ctmm
+      projection(carcasspit_tel) = projection(encounter)
+      
+      #get distance
+      dists <- c(dists,
+                 ctmm::distance(list(encounter, carcasspit_tel),method="Euclidean",sqrt=T)$CI[6])
+      
+      pitnames <- c(pitnames, carcasspit_locs$pit_name[j])
+      
+    } 
+    
+  }
+  
+  names(dists) <- pitnames
+  
+  encounterlocations$dist_to_pit[i] <- min(dists)
+  encounterlocations$nearest_pit[i] <- names(which.min(dists))
+  
+  #with regular encounter tel object
+  encounter_tel <- as.telemetry(data.frame(location.lat=encounter$latitude,
+                                           location.long=encounter$longitude,
+                                           timestamp=encounterlocations$time[i],
+                                           individual.local.identifier="encounter",
+                                           individual.taxon.canonical.name=NA))
+  
+  print(paste("done", encounterlocations$bear1[i], encounterlocations$bear2[i]))
+  
+}
+
+#calculate distance from pits at all gps fixes that are NOT encounters (takes a very long time to run)
+
+#set up df
+nonencounterlocations <- data.frame("bear"=NA, "time"=NA, "dist"=NA, "season_breeding"=NA, 
+                                    "sex"=NA, "dist_from_pit_1"=NA) %>%
+  drop_na()
+
+#for each encounter
+for (i in seq_along(bearpairs$pair1)) {
+  
+  bear1 <- bears[[which(names==bearpairs$pair1[[i]])]]
+  bear2 <- bears[[which(names==bearpairs$pair2[[i]])]]
+  
+  #collapse data to day to make it more computationally feasible and 
+  #remove day of encounter from data (figured whole day was ok)
+  bear1day <- data.frame(bear1) %>%
+    mutate(timestamp = as_date(timestamp)) %>%
+    distinct(timestamp, .keep_all=T) %>%
+    filter(timestamp != as_date(bearpairs$time[[i]])) %>%
+    as.telemetry()
+  
+  bear2day <- data.frame(bear2) %>%
+    mutate(timestamp = as_date(timestamp)) %>%
+    distinct(timestamp, .keep_all=T) %>%
+    filter(timestamp != as_date(bearpairs$time[[i]])) %>%
+    as.telemetry()
+  
+  allpits_dist1 <- data.frame()
+  allpits_dist2 <- data.frame()
+  
+  for (j in seq_along(carcasspit_locs$pit_name)) {
+    
+    #if the carcass pit is active during the specified date calculate the distance
+    if(as.Date(encounterlocations$time[[i]]) %within% 
+       interval(start=carcasspit_locs$`date active`[[j]],
+                end=carcasspit_locs$`date inactive`[[j]])) {
+      
+      #distance calculated here with geosphere::distHaversine,
+      #calculations work the same with telemetry obj but it's more efficient with geosphere bc there are so many more 
+      dists_1 <- unlist(lapply(seq(nrow(bear1)),function(x){
+        pt_bear <- unlist(bear1[x, c("longitude", "latitude")])
+        pt_pit <- unlist(carcasspit_locs[j, c("long", "lat")])
+        geosphere::distHaversine(pt_bear, pt_pit)}))
+    
+      dists_2 <- unlist(lapply(seq(nrow(bear2)),function(x){
+        pt_bear <- unlist(bear2[x, c("longitude", "latitude")])
+        pt_pit <- unlist(carcasspit_locs[j, c("long", "lat")])
+        geosphere::distHaversine(pt_bear, pt_pit)}))
+      
+    }
+    
+    #else skip it
+    else {
+      
+      dists_1 <- rep(NA, length(bear1$timestamp))
+      dists_2 <- rep(NA, length(bear2$timestamp))
+    }
+    
+    allpits_dist1 <- rbind(allpits_dist1, dists_1)
+    allpits_dist2 <- rbind(allpits_dist2, dists_2)
+    
+  }
+  
+  #returns distance from each pit at the specified timestamp
+  allpits_dist1 <- allpits_dist1 %>% 
+    `rownames<-`(carcasspit_locs$pit_name) %>% 
+    t() %>% 
+    data.frame() %>% 
+    `rownames<-`(NULL)
+  
+  allpits_dist2 <- allpits_dist2 %>% 
+    `rownames<-`(carcasspit_locs$pit_name) %>% 
+    t() %>% 
+    data.frame() %>% 
+    `rownames<-`(NULL)
+  
+  #get min dist to ANY pit at each timestamp
+  allpits_mindist1 <- apply(allpits_dist1, 1, min, na.rm=T)
+  allpits_mindist2 <- apply(allpits_dist2, 1, min, na.rm=T)
+  
+  #bind fix for each bear
+  nonencounterlocations <- rbind(nonencounterlocations,
+                                 cbind("bear"=bearpairs$pair1[[i]], 
+                                       "time"=bearpairs$time[[i]], 
+                                       "dist"=bearpairs$est[[i]], 
+                                       "season_breeding"=bearpairs$season_breeding[[i]], 
+                                       "sex"=bearpairs$sex[[i]], 
+                                       "dist_from_pit"=allpits_mindist1)) %>%
+    rbind(nonencounterlocations,
+          cbind("bear"=bearpairs$pair2[[i]], 
+                "time"=bearpairs$time[[i]], 
+                "dist"=bearpairs$est[[i]], 
+                "season_breeding"=bearpairs$season_breeding[[i]], 
+                "sex"=bearpairs$sex[[i]], 
+                "dist_from_pit"=allpits_mindist2))
+  
+  print(paste("done", bearpairs$pair1[[i]], bearpairs$pair2[[i]]))
+  
+}
+
+#Make figures!
+
+#pts removed for being >20000m away from any carcass pit
+n_removed <- (nonencounterlocations %>%
+                filter(dist_from_pit > 50000) %>%
+                count() %>%
+                summarize(n=n/nrow(nonencounterlocations)))$n
+
+#histograms/density plots of dis from carcass pit
+n_removed_fall <- (nonencounterlocations %>%
+                     filter(season_breeding=="hunting") %>%
+                     filter(dist_from_pit > 50000) %>%
+                     count() %>%
+                     summarize(n=n/nrow(filter(nonencounterlocations, season_breeding=="hunting"))))$n
+
+n_removed_spring <- (nonencounterlocations %>%
+                       filter(season_breeding=="breeding") %>%
+                       filter(dist_from_pit > 50000) %>%
+                       count() %>%
+                       summarize(n=n/nrow(filter(nonencounterlocations, season_breeding=="breeding"))))$n
+
+n_removed_other <- (nonencounterlocations %>%
+                      filter(season_breeding=="other") %>%
+                      filter(dist_from_pit > 50000) %>%
+                      count() %>%
+                      summarize(n=n/nrow(filter(nonencounterlocations, season_breeding=="other"))))$n
+
+#Figure 3. Distance from carcass pits based on sex
+nonencounterlocations %>%
+  filter(dist_from_pit < 50000) %>%
+  mutate(sex=factor(sex, levels=c("F_M", "F_F", "M_M"))) %>%
+  ggplot(mapping=aes(x=dist_from_pit, y=after_stat(density), color=sex)) +
+  geom_density() +
+  geom_histogram(data=mutate(encounterlocations, sex=factor(sex, levels=c("F_M", "F_F", "M_M"))),
+                 mapping=aes(x=dist_to_pit, fill=sex),
+                 alpha=0.6, size=0.1) +
+  scale_color_manual(labels = c("FM", "FF", "MM"),
+                     values=c("purple", "blue", "red")) +
+  scale_fill_manual(labels = c("FM", "FF", "MM"),
+                    values=c("purple", "blue", "red")) +
+  facet_wrap(~sex, 
+             labeller = labeller(sex = c(`F_M`="FM",  `F_F`="FF", `M_M`="MM"))) +
+  labs(x="Distance from nearest carcass pit (m)", y="Density of fixes", 
+       color="Non-encounter fixes", fill="Encounter fixes") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=90)) +
+  guides(color = guide_legend(override.aes = list(fill = "white")))
+
+#Figure 4: Distance from carcass pits based on season
+nonencounterlocations %>%
+  filter(dist_from_pit < 50000) %>%
+  mutate(season_breeding=factor(season_breeding, 
+                                levels=c("hunting", "breeding", "other"))) %>%
+  ggplot(mapping=aes(x=dist_from_pit, y=after_stat(density), color=season_breeding)) +
+  geom_density() +
+  geom_histogram(data=mutate(encounterlocations,
+                             season_breeding=factor(season_breeding, 
+                                                    levels=c("hunting", "breeding", "other"))),
+                 mapping=aes(x=dist_to_pit, fill=season_breeding),
+                 alpha=0.6, size=0.1) +
+  scale_color_manual(labels = c("Late Fall","Late Spring/\nSummer", "Other"),
+                     values=c("#00BA38", "#F8766D", "#619CFF")) +
+  scale_fill_manual(labels = c("Late Fall", "Late Spring/Summer", "Other"),
+                    values=c("#00BA38", "#F8766D", "#619CFF")) +
+  facet_wrap(~season_breeding, 
+             labeller = labeller(season_breeding = c(hunting="Late Fall", 
+                                                     breeding="Late Spring/\nSummer", 
+                                                     other="Other"))) +
+  labs(x="Distance from nearest carcass pit (m)", y="Density of fixes", 
+       color="Non-encounter fixes", fill="Encounter fixes") +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=90)) +
+  guides(color = guide_legend(order=1,
+                              override.aes = list(fill = "white"), size=1),
+         fill = guide_legend(order = 2))
+
 
