@@ -35,29 +35,27 @@ This repo contains the code and additional data required to reproduce the result
 - encounter_homeranges.R: Code to calculate home range shifts before and after the encounter for both individuals involved in encounter. Used to generate data for Fig. 1A-D.
 - encounter_bls.R: Code to calculate ballistic length scale over sliding windows for a single individual. Used to generate data for Fig. 1E.
 - encounter_bears.R: Code to calculate home range shifts for bears and run population level comparisons on individuals' home ranges before and after encounters. Used to generate data for Fig. 2.
-- supplementalfigs.R: Code to generate supplemental figures from data files (code to generate data files shown in encounter_bears.R). Fig. S3/S4 waiting on data owner permission.
+- supplementalfigs.R: Code to generate supplemental figures from data files (code to generate data files shown in encounter_bears.R). Fig. S3 waiting on some data owner permission.
 
 ## Data Files
-- bearpairsto500m.csv: all pairs that came within up to 500m of each other (n=103). Columns are as follows:
-  - bear1_id: individual 1
-  - bear2_id: individual 2
+- bearpairsto500m.csv: all pairs that came within up to 500m of each other (n=103, n_kept due to data quality = 77).
+Columns are as follows:
+  - bear#1: individual 1
+  - bear#2: individual 2
   - time: year-month-day hour-minute-second of encounter
-  - dist: minimum distance between individuals at encounter (in meters)
+  - low, est, high: minimum distance between individuals at encounter (in meters) 
   - trackstart: beginning of overall track for both individuals
   - trackstop: ending of overall track for both individuals.
-- bhattacharyya.csv: bhattacharyya distances between home ranges before and after encounters within 500m,calculated from population-level analysis of homeranges. Columns are as follows:
-  - split: before vs after encounter
+
+- bd_reloverlap_500m.csv: population-level overlap between home ranges after encounters up to 500m, bhattacharyya distance and percent of the overlap of home ranges before encounter. 
   - subset: describes selected group of individuals (all encounters, encounters btwn same sex individuals, encounters btwn diff sex individuals, encounters in late fall, encounters in spring, encounters btwn diff sex individuals in late fall)
-  - low: low est for bhattacharyya distance
-  - est: mean est for bhattacharyya distance
-  - high: high est for bhattacharyya distance
-- percentoverlap500m.csv: population-level overlap between home ranges after encounters up to 500m as a percent of the overlap of home ranges before encounter. 
-  - subset: describes selected group of individuals (all encounters, encounters btwn same sex individuals, encounters btwn diff sex individuals, encounters in late fall, encounters in spring, encounters btwn diff sex individuals in late fall)
-  - low: low est for percent overlap (after/before)
-  - est: mean est for percent overlap (after/before)
-  - high: high est for percent overlap (after/before)
-- uds_btwninds.csv: UDS percent overlap for each individual in pair before and after all encounters (n=103). Shows change between overlap of both individuals' home ranges before and after encounter. 
-- uds_withininds.csv: UDS percent overlap for each individual in pair before and after encounters up to 100m (n=44) . Shows change within overlap of individual home ranges for each individual in pair before and after encounter.
+  - threshold: category for how close the encounters were (50m, 100m, 200m, 300m, 400m, 500m)
+  - p: p-val indicating whether the before/ after population-level overlap shifts are significantly different
+  - before_bd_low, est, high: low, est, high meta bhattacharyya distance between home ranges before encounter
+  - after_bd_low, est, high: low, est, high meta bhattacharyya distance between home ranges after encounter
+  - rel_overlap_low, est, high: low, est, high meta percent overlap (after/before encounter)
+- uds_btwninds.csv: UDS percent overlap for each individual in pair before and after all encounters (n=103, n_kept due to data quality = 77). Shows change between overlap of both individuals' home ranges before and after encounter. 
+- uds_withininds.csv: UDS percent overlap for each individual in pair before and after encounters up to 100m (n=44, n_kept due to data quality = 32) . Shows change within overlap of individual home ranges for each individual in pair before and after encounter.
       
 *Movement data is available on Movebank.org data as datasets 1614661371 (coyotes) and 1044288582 (grizzly bears).
 
