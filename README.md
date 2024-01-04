@@ -57,7 +57,7 @@ Columns are as follows:
 - uds_btwninds.csv: UDS percent overlap for each individual in pair before and after all encounters (n=103, n_kept due to data quality = 77). Shows change between overlap of both individuals' home ranges before and after encounter. 
 - uds_withininds.csv: UDS percent overlap for each individual in pair before and after encounters up to 100m (n=44, n_kept due to data quality = 32) . Shows change within overlap of individual home ranges for each individual in pair before and after encounter.
 
-**Notes:** 
+**Additional notes:** 
 - All encounters with any subsets with an ESS <2 were dropped due to data quality concerns. All encounters with subsets with 2 < ESS < 5 were bootstrapped with ctmm.boot. 
 - Some of the analyses require meta information on cubs/encounter. This information is still protected and will be released following data owner permission.
 
