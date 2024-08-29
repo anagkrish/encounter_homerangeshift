@@ -74,7 +74,7 @@ run_akde_analysis = function(dat, name1, name2, study, date_encounter) {
   #Change the folder_dir string to the folder where you want all your results to be stored
   #Do not add any slashes to the end of the string
   #You ONLY need to change this variable
-  folder_dir <- "/Users/anankekrishnan/Documents/faganlab2022"
+  folder_dir <- "folder/name/here"
   folder_path <- str_c(folder_dir, folder_name, sep = "/")
   dir.create(folder_path)
   
@@ -207,7 +207,7 @@ run_akde_analysis = function(dat, name1, name2, study, date_encounter) {
 #Example of running the functions above with coyotes (PEC068 and PEC088) in Fig. 1
 
 #import movement data
-load("~/allmovement.rda") #change to name of your data file
+load("movement/data/here") #change to name of your data file
 ind1 = "PEC068"
 ind2 = "PEC088"
 study = "Wheeldon"
@@ -248,3 +248,164 @@ meta <- meta(list(before = list(UDS_for_meta[[1]]), after = list(UDS_for_meta[[2
 meta
 
 #this code was also used to generate the pseudoencounter plot (Fig 1D) by simply changing the encounter_date to the pseudoencounter dates
+
+#code to generate components of fig. 1
+
+#A-----------
+"distance/data/here" %>% 
+  mutate(day=format(as.POSIXct(cut(timestamp, breaks='days')), format="%Y-%m-%d %H:%M:%S")) %>%
+  group_by(day) %>%
+  summarize(low=min(low, na.rm=T),
+            est=min(est, na.rm=T),
+            high=min(high, na.rm=T)) %>%
+  mutate(days_to_encounter = difftime(day, 
+                                      as.POSIXct(encounter_date, format="%Y-%m-%d %H:%M:%S"), units="days"),
+         day=ymd_hms(day)) %>%
+  filter(days_to_encounter > -181,
+         days_to_encounter < 63) %>%
+  ggplot(mapping=aes(x=day,y=est)) +
+  geom_line() +
+  geom_ribbon(mapping=aes(ymin=low, ymax=high),fill="grey",alpha=0.5) +
+  geom_vline(mapping=aes(xintercept= encounter_date), linetype="dotdash") +
+  labs(x=NULL, y = "Distance (m)") +
+  scale_x_datetime(date_breaks = "1 month",
+                   date_labels = "%Y\n%b")+ #manually added so they'll be aligned
+  scale_y_log10() +
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
+        text=element_text(size=18))
+
+#B/C-----------
+plot("telemetry/objects/here", col = c("red","blue"),
+     UD = "UD/objects/here", col.DF = "#969ca1",
+     ylim = y_range, xlim = x_range, level.UD = 0.95, 
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+
+#D-----------
+UDS_all <- #get UD objects from run_akde_analysis function
+
+UDS_all_aligned <- ctmm:::same.grids(UDS_all)
+
+MEAN1 <- mean(list(UDS_all_aligned[[1]], UDS_all_aligned[[2]]),sample=FALSE) # pec068 and pec088 before
+MEAN2 <- mean(list(UDS_all_aligned[[3]], UDS_all_aligned[[4]]),sample=FALSE) # pec068 and pec088 after
+HDIST <- sqrt(MEAN2$PDF) - sqrt(MEAN1$PDF)
+
+lev=0.95
+UD_all <- rbind(SpatialPolygonsDataFrame.UD(UDS_all[[1]], level.UD=lev),
+                SpatialPolygonsDataFrame.UD(UDS_all[[2]], level.UD=lev),
+                SpatialPolygonsDataFrame.UD(UDS_all[[3]], level.UD=lev),
+                SpatialPolygonsDataFrame.UD(UDS_all[[4]], level.UD=lev))
+UD_all <- UD_all[c(2,5,8,11),] #subset just 95% est, not low/high
+
+diff_ras <- raster(HDIST) #hellinger distance to show change in space use
+projection(diff_ras) <- ctmm::projection(UD_all)
+diff_ras <- raster::setExtent(diff_ras, UD_all)
+diff_ras <- raster::mask(x = diff_ras, mask = UD_all)
+diff_ras <- crop(x = diff_ras, y = extent(UD_all))
+
+breaks = round(seq(min(HDIST), max(HDIST), length.out=21), 5)
+em = #merge(extent(diff_ras)+5,extent(diff_ras)+0.2)
+  extent(c(-10.2, 7, -7.5, 7.5))
+
+plot(em, lwd=0, xlab="x (kilometers)", ylab = "y (kilometers)", legend=FALSE,
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+plot(diff_ras, col=pals::coolwarm(21), legend=F,
+     cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5, add=T)
+plot(UD_all, col=NA, border=c("black", "black", "darkgrey", "darkgrey"), lwd=2, add=T) #after
+plot(diff_ras, breaks=breaks, 
+     col=pals::coolwarm(21),
+     legend.only=TRUE, horizontal = T,
+     legend.width=0.75, legend.shrink=0.4,
+     smallplot=c(0.15,.9, .95,.97),
+     #c(min % from left, max % from left, min % from bottom, max % from bottom)
+     axis.args=list(at=breaks,
+                    labels=format(breaks, scientific=F),
+                    cex.axis=0.6),
+     legend.args = list(text="Difference of Mean Coyote UDs Before/After Encounter", side = 1, line=-1.9),
+     cex.lab=3,
+     add=T)
+
+#E-----------
+#calculate pseudoencounters and encounters with above described method
+"between/individual/pseudoencounter/data/here" %>% 
+  mutate(date = as.POSIXct(date, format="%Y-%m-%d %H:%M:%S"),
+         days_to_encounter = difftime(date, as.POSIXct(encounter_date, format="%Y-%m-%d %H:%M:%S"), units="days"),
+         encounter=ifelse(round(days_to_encounter)==0, "yes","no"),
+         shapecolor=factor(paste(`before/after`,encounter), 
+                           levels=c("before no", "after no", "before yes", "after yes"))) %>%
+  ggplot(mapping = aes(x = days_to_encounter, y = est, color = shapecolor, shape = shapecolor)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = low, ymax = high)) +
+  geom_vline(xintercept = 0, linetype="dotdash") + 
+  labs(x = "Days to Encounter", y = "Range Distribution Overlap \nBetween Individuals") +
+  scale_color_manual(name=" ",
+                     labels=c('Before Null Encounter', 'After Null Encounter', 
+                              'Before Encounter', 'After Encounter'),
+                     values = c("purple","orange", "purple", "orange")) +
+  scale_shape_manual(name=" ",
+                     labels=c('Before Null Encounter', 'After Null Encounter', 
+                              'Before Encounter', 'After Encounter'),
+                     values= c(1, 1, 16, 16)) +
+  scale_x_continuous(limits=c(-181, 63),
+                     breaks = c(-240, -210, -180, -150, -120, -90, -60, -30, 0, 30, 60)) +
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
+        text=element_text(size=18),
+        legend.text = element_text(size = 18),
+        egend.box.margin = margin(0, 0, 0, 0),
+        legend.direction = "horizontal",
+        legend.position = "top",
+        legend.justification = c(0.31,0.2))
+
+#F-----------
+#calculate pseudoencounters and encounters with above described method
+"within/individual/pseudoencounter/data/here" %>% 
+  mutate(dt = as.POSIXct(dt, format="%Y-%m-%d"),
+         days_to_encounter = round(difftime(dt, as.POSIXct(encounter_date, format="%Y-%m-%d %H:%M:%S"), units="days"))) %>%
+  mutate_at(c("overlap_low", "overlap_est", "overlap_high"), parse_number) %>%
+  #encounter= factor(encounter)) %>%
+  ggplot(mapping = aes(x = days_to_encounter, y = overlap_est, color=ind)) +
+  geom_point(size = 1.5) +
+  geom_errorbar(aes(ymin = overlap_low, ymax = overlap_high)) +
+  geom_vline(xintercept = 0, linetype="dotdash") + 
+  labs(x = "Days to Encounter", 
+       y = "Range Distribution Overlap \nWithin Individuals") +
+  scale_y_continuous(limits=c(0.65,1)) +
+  scale_x_continuous(limits=c(-181, 63),
+                     breaks = c(-240, -210, -180, -150, -120, -90, -60, -30, 0, 30, 60)) +
+  scale_color_manual(values=c("red","blue")) +
+  theme_bw() + 
+  #facet_wrap(~ind, ncol=1) +
+  labs(color=NULL) +
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
+        text=element_text(size=18), legend.position = c(0.89, 0.12),
+        legend.key = element_blank(), legend.background=element_blank())
+
+
+#G-----------
+#calculate bls from encounter_bls.R file
+
+pec068_bls %>%
+  filter(days_to_encounter > -181,
+         days_to_encounter < 63) %>%
+  ggplot(mapping=aes(x=days_to_encounter, y=b_l_s_mid)) +
+  geom_line(aes(color="PEC068")) +
+  geom_line(mapping=aes(x=days_to_encounter, y=b_l_s_mid, color="PEC088"), data=pec088_bls) +
+  geom_ribbon(aes(ymin = b_l_s_high, ymax = b_l_s_low), alpha = 0.2) +
+  geom_ribbon(aes(ymin = b_l_s_high, ymax = b_l_s_low), alpha = 0.2, data=pec088_bls) +
+  geom_vline(mapping=aes(xintercept=0), linetype="dotdash") +
+  scale_x_continuous(expand = c(0, 0), limits = c(-184, 65)) +
+  labs(x="Days to Encounter", y = "Ballistic Length Scale (m)") +
+  scale_color_manual(name=NULL,
+                     breaks=c('PEC068', 'PEC088'),
+                     values=c('PEC068'='red', 'PEC088'='blue')) +
+  scale_x_continuous(limits=c(-181, 63),
+                     breaks = c(-240, -210, -180, -150, -120, -90, -60, -30, 0, 30, 60)) +
+  theme_bw() + #get rid of background
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), axis.line = element_line(color = "black", linewidth=0.5),
+        text=element_text(size=18), legend.position = c(0.89, 0.12), 
+        legend.key = element_blank(), legend.background=element_blank())
